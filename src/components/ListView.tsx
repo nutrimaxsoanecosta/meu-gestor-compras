@@ -16,6 +16,7 @@ interface ListViewProps {
   abrirModalEditarItem: (item: any) => void;
   abrirModalHistoricoCompras: (item: any) => void;
   carregarItensDaListaSelecionada: () => void;
+  abrirLinkExportacao: () => void;
 }
 
 export default function ListView({
@@ -34,6 +35,7 @@ export default function ListView({
   abrirModalEditarItem,
   abrirModalHistoricoCompras,
   carregarItensDaListaSelecionada,
+  abrirLinkExportacao
 }: ListViewProps) {
   const pesoPrioridade: { [key: string]: number } = { ALTA: 3, MEDIA: 2, BAIXA: 1 };
 
@@ -70,6 +72,13 @@ export default function ListView({
               Selecionar Lista
             </label>
             <div className="flex items-center gap-2">
+              <button
+              onClick={abrirLinkExportacao} // <-- Novo botão de exportação
+              title="Exportar / Compartilhar Lista por Link"
+              className="text-xs text-emerald-600 font-bold hover:underline flex items-center gap-1"
+            >
+              <i className="fa-solid fa-share-nodes"></i> Exportar
+            </button>
               <button
                 onClick={abrirNovaLista}
                 title="Cadastrar Nova Lista"

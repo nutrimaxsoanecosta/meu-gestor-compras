@@ -43,6 +43,11 @@ export default function Home() {
   const [modalNovaListaOpen, setModalNovaListaOpen] = useState(false);
   const [modalNovoItemOpen, setModalNovoItemOpen] = useState(false);
 
+  // Estados para controlar o modal de importação via link
+  const [dadosImportacaoPendentes, setDadosImportacaoPendentes] = useState<any>(null);
+  const [modalImportarLinkOpen, setModalImportarLinkOpen] = useState(false);
+  const [sobrescreverTotal, setSobrescreverTotal] = useState(false);
+
   // Carregar dados iniciais do LocalStorage
   useEffect(() => {
     const storedListas = JSON.parse(localStorage.getItem('LOCAL_LISTAS') || '[]');
@@ -69,6 +74,29 @@ export default function Home() {
       setDadosLista(null);
     }
   }, [listaSelecionada]);
+
+
+  useEffect(() => {
+    // Verifica se a URL possui parâmetros de importação
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const dadosParam = params.get('dados');
+
+      if (dadosParam) {
+        try {
+          // Decodifica de Base64 para JSON
+          const jsonString = decodeURIComponent(atob(dadosParam));
+          const pacoteImportado = JSON.parse(jsonString);
+
+          setDadosImportacaoPendentes(pacoteImportado);
+          setModalImportarLinkOpen(true);
+        } catch (err) {
+          console.error("Erro ao ler dados do link de importação", err);
+          alert("O link de importação é inválido ou está corrompido.");
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (abaAtiva === 'despensa') {
@@ -173,6 +201,108 @@ export default function Home() {
     return dataIsoStr;
   }
 
+  // Função que executa a importação conforme a escolha do usuário
+  function confirmarImportacaoLink(sobrescrever: boolean) {
+    if (!dadosImportacaoPendentes) return;
+
+    let listasStorage = JSON.parse(localStorage.getItem('LOCAL_LISTAS') || '[]');
+    const { nomeLista, metaGasto, itens } = dadosImportacaoPendentes;
+
+    // Procura se já existe uma lista com o mesmo nome
+    const indexExistente = listasStorage.findIndex((l: any) => l.nome.toLowerCase() === nomeLista.toLowerCase());
+
+    if (indexExistente >= 0) {
+      if (sobrescrever) {
+        // Sobrescrita Total dos dados daquela lista
+        listasStorage[indexExistente] = {
+          ...listasStorage[indexExistente],
+          metaGasto: metaGasto || listasStorage[indexExistente].metaGasto,
+          itens: itens // Substitui inteiramente os itens e histórico
+        };
+        alert(`Lista "${nomeLista}" sobrescrita com sucesso!`);
+      } else {
+        // Importação Parcial (Adicionar novos itens e histórico sem apagar os antigos)
+        const itensAtuais = listasStorage[indexExistente].itens || [];
+        
+        // Mescla inteligente: se o item já existe, adiciona as novas compras ao histórico do item; se não existe, adiciona o item novo.
+        itens.forEach((itemImportado: any) => {
+          const itemExistente = itensAtuais.find((i: any) => i.nome.toLowerCase() === itemImportado.nome.toLowerCase());
+          if (itemExistente) {
+            // Adiciona as novas compras/histórico ao item existente
+            itemExistente.compras = [...(itemExistente.compras || []), ...(itemImportado.compras || [])];
+          } else {
+            // Adiciona o novo item completo
+            itensAtuais.push(itemImportado);
+          }
+        });
+
+        listasStorage[indexExistente].itens = itensAtuais;
+        alert(`Itens e histórico adicionados à lista "${nomeLista}" com sucesso!`);
+      }
+    } else {
+      // Se a lista não existe no LocalStorage, cria uma nova
+      const novaLista = {
+        id: Date.now().toString(),
+        nome: nomeLista,
+        metaGasto: metaGasto || 0,
+        itens: itens
+      };
+      listasStorage.push(novaLista);
+      alert(`Nova lista "${nomeLista}" importada com sucesso!`);
+    }
+
+    // Salva no LocalStorage e limpa a URL para evitar reimportações ao atualizar
+    localStorage.setItem('LOCAL_LISTAS', JSON.stringify(listasStorage));
+    setModalImportarLinkOpen(false);
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    // Recarrega as listas na tela
+    setListas(listasStorage);
+    if (listasStorage.length > 0) {
+      setListaSelecionada(listasStorage[listasStorage.length - 1].id);
+    }
+  }
+
+  function gerarLinkExportacao() {
+    if (!listaSelecionada) return alert('Selecione uma lista para exportar.');
+
+    const listasStorage = JSON.parse(localStorage.getItem('LOCAL_LISTAS') || '[]');
+    const listaAtual = listasStorage.find((l: any) => String(l.id) === String(listaSelecionada));
+
+    if (!listaAtual) return alert('Lista não encontrada.');
+
+    // Monta a data e hora formatada
+    const agora = new Date();
+    const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
+
+    const pacoteExportacao = {
+      nomeLista: listaAtual.nome,
+      metaGasto: listaAtual.metaGasto,
+      dataExportacao: dataFormatada,
+      itens: listaAtual.itens || []
+    };
+
+    // Codifica em Base64 seguro para URL
+    const jsonString = JSON.stringify(pacoteExportacao);
+    const base64Data = btoa(encodeURIComponent(jsonString));
+
+    const baseUrl = window.location.origin + window.location.pathname;
+    const linkCompartilhamento = `${baseUrl}?dados=${base64Data}`;
+
+    // Mensagem solicitada com a formatação exigida
+    const mensagemTexto = `Item exportado [${dataFormatada}] - Clique no link para importar a lista "${listaAtual.nome}":\n${linkCompartilhamento}`;
+
+    // Copia para a área de transferência como backup
+    navigator.clipboard.writeText(mensagemTexto);
+
+    // Codifica o texto para ser passado via URL do WhatsApp
+    const mensagemCodificada = encodeURIComponent(mensagemTexto);
+    const urlWhatsApp = `https://wa.me/?text=${mensagemCodificada}`;
+
+    // Abre o WhatsApp em uma nova aba/janela
+    window.open(urlWhatsApp, '_blank');
+  }
+
   return (
     <div className="flex flex-col h-full min-h-screen">
       <Header
@@ -245,6 +375,7 @@ export default function Home() {
             setComprasHistorico(comprasFormatadas);
             setModalHistoricoOpen(true);
           }}
+          abrirLinkExportacao={gerarLinkExportacao} // <-- Passando a função aqui
         />
       ) : (
         <PantryView
@@ -513,6 +644,61 @@ export default function Home() {
           calcularStatusLista(listaSelecionada);
         }}
       />
+
+      {modalImportarLinkOpen && dadosImportacaoPendentes && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Importação de Dados</span>
+            <h3 className="text-lg font-bold text-slate-800">
+              Importar o link da lista [{dadosImportacaoPendentes.nomeLista}]?
+            </h3>
+            <p className="text-xs text-slate-400">
+              Exportado em: {dadosImportacaoPendentes.dataExportacao}
+            </p>
+          </div>
+
+          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs text-slate-600 space-y-1">
+            <p>• Contém <strong>{dadosImportacaoPendentes.itens?.length || 0}</strong> itens com histórico.</p>
+            <p className="text-[11px] text-slate-400">Escolha como deseja proceder com os dados existentes:</p>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="checkSobrescrita"
+              checked={sobrescreverTotal}
+              onChange={(e) => setSobrescreverTotal(e.target.checked)}
+              className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+            />
+            <label htmlFor="checkSobrescrita" className="text-xs font-semibold text-slate-700 cursor-pointer">
+              Ativar Sobrescrita Total (Apaga dados atuais da lista)
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <button
+              onClick={() => confirmarImportacaoLink(sobrescreverTotal)}
+              className={`w-full py-3 rounded-xl font-bold text-white text-sm transition ${
+                sobrescreverTotal ? 'bg-rose-600 hover:bg-rose-700' : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
+            >
+              {sobrescreverTotal ? 'Importar com Sobrescrita Total' : 'Importar Parcialmente (Adicionar)'}
+            </button>
+            <button
+              onClick={() => {
+                setModalImportarLinkOpen(false);
+                window.history.replaceState({}, document.title, window.location.pathname);
+              }}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-2.5 rounded-xl text-xs font-semibold transition"
+            >
+              Não importar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     </div>
   );
 }
