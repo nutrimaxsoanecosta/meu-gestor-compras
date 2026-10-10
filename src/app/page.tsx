@@ -223,6 +223,7 @@ export default function Home() {
 
     // 2. Importa / Mescla a Lista de Compras
     const indexExistente = listasStorage.findIndex((l: any) => l.nome.toLowerCase() === nomeLista.toLowerCase());
+    let idListaAlvo = '';
 
     if (indexExistente >= 0) {
       if (sobrescrever) {
@@ -231,6 +232,7 @@ export default function Home() {
           metaGasto: metaGasto || listasStorage[indexExistente].metaGasto,
           itens: itens
         };
+        idListaAlvo = listasStorage[indexExistente].id;
         alert(`Lista "${nomeLista}" sobrescrita com sucesso!`);
       } else {
         const itensAtuais = listasStorage[indexExistente].itens || [];
@@ -239,28 +241,25 @@ export default function Home() {
           const itemExistente = itensAtuais.find((i: any) => i.nome.toLowerCase() === itemImportado.nome.toLowerCase());
           
           if (itemExistente) {
-            // Garante que o array de compras existe
             if (!itemExistente.compras) itemExistente.compras = [];
 
-            // Verifica por ID se a compra exata já existe no histórico do item
             (itemImportado.compras || []).forEach((compraImportada: any) => {
               const compraJaExiste = itemExistente.compras.some(
                 (c: any) => String(c.id) === String(compraImportada.id)
               );
 
               if (!compraJaExiste) {
-                // Só adiciona se o ID específico da compra ainda não estiver lá
                 itemExistente.compras.push(compraImportada);
               }
             });
           } else {
-            // Se o item não existe na lista atual, adiciona ele inteiro com suas compras
             itensAtuais.push(itemImportado);
           }
         });
 
         listasStorage[indexExistente].itens = itensAtuais;
-        alert(`Itens e histórico adicionados à lista "${nomeLista}" sem duplicar registros!`);
+        idListaAlvo = listasStorage[indexExistente].id;
+        alert(`Itens e histórico adicionados à lista "${nomeLista}" com sucesso!`);
       }
     } else {
       const novaLista = {
@@ -270,17 +269,24 @@ export default function Home() {
         itens: itens
       };
       listasStorage.push(novaLista);
+      idListaAlvo = novaLista.id;
       alert(`Nova lista "${nomeLista}" importada com sucesso!`);
     }
 
-    localStorage.setItem('LOCAL_LISTAS', JSON.stringify(listasStorage));
+    // Salva no LocalStorage
+    persistirListas(listasStorage);
+    
+    // Limpa o modal e remove o parâmetro 'dados' da URL sem recarregar a página
     setModalImportarLinkOpen(false);
     window.history.replaceState({}, document.title, window.location.pathname);
     
+    // Atualiza os estados para forçar a renderização imediata na tela
     setListas(listasStorage);
-    if (listasStorage.length > 0) {
-      setListaSelecionada(listasStorage[listasStorage.length - 1].id);
-    }
+    setEstabelecimentos([...lojasStorage]);
+    setListaSelecionada(idListaAlvo);
+
+    // Recalcula o status, totais e progresso da lista selecionada imediatamente
+    calcularStatusLista(idListaAlvo);
   }
 
   function gerarLinkExportacao() {
