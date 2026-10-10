@@ -213,9 +213,8 @@ export default function Home() {
     // 1. Importa / Mescla os Estabelecimentos (Mercados)
     if (estabelecimentosImportados && Array.isArray(estabelecimentosImportados)) {
       estabelecimentosImportados.forEach((lojaImp: any) => {
-        const lojaExiste = lojasStorage.find((e: any) => e.nome.toLowerCase() === lojaImp.nome.toLowerCase());
+        const lojaExiste = lojasStorage.find((e: any) => String(e.id) === String(lojaImp.id) || e.nome.toLowerCase() === lojaImp.nome.toLowerCase());
         if (!lojaExiste) {
-          // Adiciona a nova loja se ela não existir
           lojasStorage.push(lojaImp);
         }
       });
@@ -232,21 +231,36 @@ export default function Home() {
           metaGasto: metaGasto || listasStorage[indexExistente].metaGasto,
           itens: itens
         };
-        alert(`Lista "${nomeLista}" e mercados sobrescritos com sucesso!`);
+        alert(`Lista "${nomeLista}" sobrescrita com sucesso!`);
       } else {
         const itensAtuais = listasStorage[indexExistente].itens || [];
         
         itens.forEach((itemImportado: any) => {
           const itemExistente = itensAtuais.find((i: any) => i.nome.toLowerCase() === itemImportado.nome.toLowerCase());
+          
           if (itemExistente) {
-            itemExistente.compras = [...(itemExistente.compras || []), ...(itemImportado.compras || [])];
+            // Garante que o array de compras existe
+            if (!itemExistente.compras) itemExistente.compras = [];
+
+            // Verifica por ID se a compra exata já existe no histórico do item
+            (itemImportado.compras || []).forEach((compraImportada: any) => {
+              const compraJaExiste = itemExistente.compras.some(
+                (c: any) => String(c.id) === String(compraImportada.id)
+              );
+
+              if (!compraJaExiste) {
+                // Só adiciona se o ID específico da compra ainda não estiver lá
+                itemExistente.compras.push(compraImportada);
+              }
+            });
           } else {
+            // Se o item não existe na lista atual, adiciona ele inteiro com suas compras
             itensAtuais.push(itemImportado);
           }
         });
 
         listasStorage[indexExistente].itens = itensAtuais;
-        alert(`Itens, histórico e mercados adicionados à lista "${nomeLista}" com sucesso!`);
+        alert(`Itens e histórico adicionados à lista "${nomeLista}" sem duplicar registros!`);
       }
     } else {
       const novaLista = {
@@ -256,7 +270,7 @@ export default function Home() {
         itens: itens
       };
       listasStorage.push(novaLista);
-      alert(`Nova lista "${nomeLista}" e mercados importados com sucesso!`);
+      alert(`Nova lista "${nomeLista}" importada com sucesso!`);
     }
 
     localStorage.setItem('LOCAL_LISTAS', JSON.stringify(listasStorage));
