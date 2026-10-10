@@ -206,41 +206,49 @@ export default function Home() {
     if (!dadosImportacaoPendentes) return;
 
     let listasStorage = JSON.parse(localStorage.getItem('LOCAL_LISTAS') || '[]');
-    const { nomeLista, metaGasto, itens } = dadosImportacaoPendentes;
+    let lojasStorage = JSON.parse(localStorage.getItem('LOCAL_ESTABELECIMENTOS') || '[]');
+    
+    const { nomeLista, metaGasto, itens, estabelecimentos: estabelecimentosImportados } = dadosImportacaoPendentes;
 
-    // Procura se já existe uma lista com o mesmo nome
+    // 1. Importa / Mescla os Estabelecimentos (Mercados)
+    if (estabelecimentosImportados && Array.isArray(estabelecimentosImportados)) {
+      estabelecimentosImportados.forEach((lojaImp: any) => {
+        const lojaExiste = lojasStorage.find((e: any) => e.nome.toLowerCase() === lojaImp.nome.toLowerCase());
+        if (!lojaExiste) {
+          // Adiciona a nova loja se ela não existir
+          lojasStorage.push(lojaImp);
+        }
+      });
+      persistirEstabelecimentos(lojasStorage);
+    }
+
+    // 2. Importa / Mescla a Lista de Compras
     const indexExistente = listasStorage.findIndex((l: any) => l.nome.toLowerCase() === nomeLista.toLowerCase());
 
     if (indexExistente >= 0) {
       if (sobrescrever) {
-        // Sobrescrita Total dos dados daquela lista
         listasStorage[indexExistente] = {
           ...listasStorage[indexExistente],
           metaGasto: metaGasto || listasStorage[indexExistente].metaGasto,
-          itens: itens // Substitui inteiramente os itens e histórico
+          itens: itens
         };
-        alert(`Lista "${nomeLista}" sobrescrita com sucesso!`);
+        alert(`Lista "${nomeLista}" e mercados sobrescritos com sucesso!`);
       } else {
-        // Importação Parcial (Adicionar novos itens e histórico sem apagar os antigos)
         const itensAtuais = listasStorage[indexExistente].itens || [];
         
-        // Mescla inteligente: se o item já existe, adiciona as novas compras ao histórico do item; se não existe, adiciona o item novo.
         itens.forEach((itemImportado: any) => {
           const itemExistente = itensAtuais.find((i: any) => i.nome.toLowerCase() === itemImportado.nome.toLowerCase());
           if (itemExistente) {
-            // Adiciona as novas compras/histórico ao item existente
             itemExistente.compras = [...(itemExistente.compras || []), ...(itemImportado.compras || [])];
           } else {
-            // Adiciona o novo item completo
             itensAtuais.push(itemImportado);
           }
         });
 
         listasStorage[indexExistente].itens = itensAtuais;
-        alert(`Itens e histórico adicionados à lista "${nomeLista}" com sucesso!`);
+        alert(`Itens, histórico e mercados adicionados à lista "${nomeLista}" com sucesso!`);
       }
     } else {
-      // Se a lista não existe no LocalStorage, cria uma nova
       const novaLista = {
         id: Date.now().toString(),
         nome: nomeLista,
@@ -248,15 +256,13 @@ export default function Home() {
         itens: itens
       };
       listasStorage.push(novaLista);
-      alert(`Nova lista "${nomeLista}" importada com sucesso!`);
+      alert(`Nova lista "${nomeLista}" e mercados importados com sucesso!`);
     }
 
-    // Salva no LocalStorage e limpa a URL para evitar reimportações ao atualizar
     localStorage.setItem('LOCAL_LISTAS', JSON.stringify(listasStorage));
     setModalImportarLinkOpen(false);
     window.history.replaceState({}, document.title, window.location.pathname);
     
-    // Recarrega as listas na tela
     setListas(listasStorage);
     if (listasStorage.length > 0) {
       setListaSelecionada(listasStorage[listasStorage.length - 1].id);
@@ -267,11 +273,24 @@ export default function Home() {
     if (!listaSelecionada) return alert('Selecione uma lista para exportar.');
 
     const listasStorage = JSON.parse(localStorage.getItem('LOCAL_LISTAS') || '[]');
+    const estabelecimentosStorage = JSON.parse(localStorage.getItem('LOCAL_ESTABELECIMENTOS') || '[]');
+    
     const listaAtual = listasStorage.find((l: any) => String(l.id) === String(listaSelecionada));
 
     if (!listaAtual) return alert('Lista não encontrada.');
 
-    // Monta a data e hora formatada
+    // Identifica quais estabelecimentos foram usados nos itens desta lista para exportar junto
+    const idsLojasUsadas = new Set<string>();
+    (listaAtual.itens || []).forEach((item: any) => {
+      (item.compras || []).forEach((c: any) => {
+        if (c.estabelecimentoId) idsLojasUsadas.add(c.estabelecimentoId);
+      });
+    });
+
+    const lojasParaExportar = estabelecimentosStorage.filter((e: any) => 
+      idsLojasUsadas.has(String(e.id)) || String(e.id) === String(estabelecimentoPrincipal)
+    );
+
     const agora = new Date();
     const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
 
@@ -279,27 +298,22 @@ export default function Home() {
       nomeLista: listaAtual.nome,
       metaGasto: listaAtual.metaGasto,
       dataExportacao: dataFormatada,
-      itens: listaAtual.itens || []
+      itens: listaAtual.itens || [],
+      estabelecimentos: lojasParaExportar // <-- Inclui o(s) mercado(s) no pacote
     };
 
-    // Codifica em Base64 seguro para URL
     const jsonString = JSON.stringify(pacoteExportacao);
     const base64Data = btoa(encodeURIComponent(jsonString));
 
     const baseUrl = window.location.origin + window.location.pathname;
     const linkCompartilhamento = `${baseUrl}?dados=${base64Data}`;
 
-    // Mensagem solicitada com a formatação exigida
-    const mensagemTexto = `Item exportado [${dataFormatada}] - Clique no link para importar a lista "${listaAtual.nome}":\n${linkCompartilhamento}`;
+    const mensagemTexto = `Item exportado [${dataFormatada}] - Clique no link para importar a lista "${listaAtual.nome}" e os mercados:\n${linkCompartilhamento}`;
 
-    // Copia para a área de transferência como backup
     navigator.clipboard.writeText(mensagemTexto);
 
-    // Codifica o texto para ser passado via URL do WhatsApp
     const mensagemCodificada = encodeURIComponent(mensagemTexto);
     const urlWhatsApp = `https://wa.me/?text=${mensagemCodificada}`;
-
-    // Abre o WhatsApp em uma nova aba/janela
     window.open(urlWhatsApp, '_blank');
   }
 
