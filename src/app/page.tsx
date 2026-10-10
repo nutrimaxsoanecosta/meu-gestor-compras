@@ -264,7 +264,7 @@ export default function Home() {
       }
     } else {
       const novaLista = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         nome: nomeLista,
         metaGasto: metaGasto || 0,
         itens: itens
@@ -367,9 +367,9 @@ export default function Home() {
         abrirNovoEstabelecimento={() => {
           const nome = prompt('Nome do Estabelecimento (ex: Padaria, Supermercado):');
           if (nome) {
-            const novasLojas = [...estabelecimentos, { id: Date.now().toString(), nome }];
+            const novasLojas = [...estabelecimentos, { id: crypto.randomUUID(), nome }];
             persistirEstabelecimentos(novasLojas);
-            setEstabelecimentoPrincipal(novasLojas[novasLojas.length - 1].id);
+            if (!estabelecimentoPrincipal) setEstabelecimentoPrincipal(novasLojas[0].id);
             alert(`Estabelecimento criado com sucesso!`);
           }
         }}
@@ -462,7 +462,7 @@ export default function Home() {
               String(l.id) === String(id) ? { ...l, nome, metaGasto } : l
             );
           } else {
-            const novaL = { id: Date.now().toString(), nome, metaGasto, itens: [] };
+            const novaL = { id: crypto.randomUUID(), nome, metaGasto, itens: [] };
             listasStorage.push(novaL);
             setListaSelecionada(novaL.id);
           }
@@ -483,7 +483,7 @@ export default function Home() {
           listasStorage = listasStorage.map((l: any) => {
             if (String(l.id) === String(listaSelecionada)) {
               const novoItem = {
-                id: Date.now().toString(),
+                id: crypto.randomUUID(),
                 nome,
                 quantidadeDesejada: parseFloat(quantidade),
                 medida,
@@ -583,7 +583,7 @@ export default function Home() {
 
           let listasStorage = JSON.parse(localStorage.getItem('LOCAL_LISTAS') || '[]');
           const novaCompra = {
-            id: Date.now().toString(),
+            id: crypto.randomUUID(),
             estabelecimentoId: estabId,
             quantidade: qtdFaltante,
             precoUnitario: 0,
@@ -618,7 +618,7 @@ export default function Home() {
 
           let listasStorage = JSON.parse(localStorage.getItem('LOCAL_LISTAS') || '[]');
           const novaCompra = {
-            id: Date.now().toString(),
+            id: crypto.randomUUID(),
             estabelecimentoId: dados.estabelecimentoId,
             quantidade: parseFloat(dados.quantidade),
             precoUnitario: parseFloat(dados.precoUnitario),
