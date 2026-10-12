@@ -13,6 +13,7 @@ import ModalEditarItem from '@/components/Modals/ModalEditarItem';
 import ModalHistoricoCompras from '@/components/Modals/ModalHistoricoCompras';
 import ModalNovaLista from '@/components/Modals/ModalNovaLista';
 import ModalNovoItem from '@/components/Modals/ModalNovoItem';
+import ModalCadastroRapido from '@/components/Modals/ModalCadastroRapido';
 
 export default function Home() {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
@@ -23,6 +24,7 @@ export default function Home() {
   const [estabelecimentos, setEstabelecimentos] = useState<any[]>([]);
   const [estabelecimentoPrincipal, setEstabelecimentoPrincipal] = useState('');
   const [dadosLista, setDadosLista] = useState<any>(null);
+  const [modalCadastroRapidoOpen, setModalCadastroRapidoOpen] = useState(false);
 
   const [comprasDespensa, setComprasDespensa] = useState<any[]>([]);
   const [filtroDespensa, setFiltroDespensa] = useState('todos');
@@ -444,14 +446,9 @@ export default function Home() {
           if (!listaSelecionada) return alert('Selecione uma lista antes de adicionar itens.');
           setModalNovoItemOpen(true);
         }}
-        abrirModalNovoEstabelecimento={() => {
-          const nome = prompt('Nome do Estabelecimento (ex: Padaria, Supermercado):');
-          if (nome) {
-            const novasLojas = [...estabelecimentos, { id: Date.now().toString(), nome }];
-            persistirEstabelecimentos(novasLojas);
-            if (!estabelecimentoPrincipal) setEstabelecimentoPrincipal(novasLojas[0].id);
-            alert(`Estabelecimento criado com sucesso!`);
-          }
+        abrirModalCadastroRapido={() => {
+          if (!listaSelecionada) return alert('Selecione uma lista antes de utilizar o cadastro rápido.');
+          setModalCadastroRapidoOpen(true);
         }}
       />
 
@@ -739,6 +736,48 @@ export default function Home() {
         </div>
       </div>
     )}
+
+
+    <ModalCadastroRapido
+        isOpen={modalCadastroRapidoOpen}
+        onClose={() => setModalCadastroRapidoOpen(false)}
+        estabelecimentos={estabelecimentos}
+        estabelecimentoPadrao={estabelecimentoPrincipal}
+        onSubmit={(dados) => {
+          let listasStorage = JSON.parse(localStorage.getItem('LOCAL_LISTAS') || '[]');
+
+          const novaCompra = dados.compraInicial.estabelecimentoId ? {
+            id: crypto.randomUUID(),
+            estabelecimentoId: dados.compraInicial.estabelecimentoId,
+            quantidade: dados.compraInicial.quantidade,
+            precoUnitario: dados.compraInicial.precoUnitario,
+            data: new Date().toISOString().split('T')[0],
+            dataValidade: dados.compraInicial.dataValidade || '',
+            consumido: false,
+          } : null;
+
+          listasStorage = listasStorage.map((l: any) => {
+            if (String(l.id) === String(listaSelecionada)) {
+              const novoItem = {
+                id: crypto.randomUUID(),
+                nome: dados.nome,
+                quantidadeDesejada: dados.quantidadeDesejada,
+                medida: dados.medida,
+                prioridade: dados.prioridade,
+                categoria: dados.categoria,
+                compras: novaCompra ? [novaCompra] : [],
+              };
+              return { ...l, itens: [...(l.itens || []), novoItem] };
+            }
+            return l;
+          });
+
+          persistirListas(listasStorage);
+          setModalCadastroRapidoOpen(false);
+          calcularStatusLista(listaSelecionada);
+          alert('Item cadastrado com histórico rápido com sucesso!');
+        }}
+      />
 
     </div>
   );

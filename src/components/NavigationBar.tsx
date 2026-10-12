@@ -3,13 +3,13 @@ import React from 'react';
 interface NavigationBarProps {
   abrirModalNovaLista: () => void;
   abrirModalNovoItem: () => void;
-  abrirModalNovoEstabelecimento: () => void;
+  abrirModalCadastroRapido: () => void; // Nova prop
 }
 
 export default function NavigationBar({
   abrirModalNovaLista,
   abrirModalNovoItem,
-  abrirModalNovoEstabelecimento,
+  abrirModalCadastroRapido,
 }: NavigationBarProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-2 flex justify-around items-center z-20 max-w-md mx-auto">
@@ -33,14 +33,16 @@ export default function NavigationBar({
         <span className="font-bold text-indigo-600">Item</span>
       </button>
 
+      {/* Botão de Cadastro Rápido (Raio/Relâmpago) substituindo a Loja */}
       <button
-        onClick={abrirModalNovoEstabelecimento}
-        className="flex flex-col items-center gap-1 text-slate-500 hover:text-indigo-600 text-xs"
+        onClick={abrirModalCadastroRapido}
+        className="flex flex-col items-center text-amber-500 hover:text-amber-600 transition group"
+        title="Cadastro Rápido (Item + Histórico)"
       >
-        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
-          <i className="fa-solid fa-store text-base"></i>
+        <div className="bg-amber-50 group-hover:bg-amber-100 p-2.5 rounded-2xl transition">
+          <i className="fa-solid fa-bolt text-lg"></i>
         </div>
-        <span>Loja</span>
+        <span className="text-[10px] font-bold mt-1 text-amber-600">Rápido</span>
       </button>
     </nav>
   );
