@@ -20,16 +20,19 @@ export default function ModalCompra({
   const [estabelecimentoId, setEstabelecimentoId] = useState(estabelecimentoPadrao);
   const [quantidade, setQuantidade] = useState(itemAtual?.quantidadePendente || '');
   const [medida, setMedida] = useState(itemAtual?.medida || 'Unid.');
-  const [precoUnitario, setPrecoUnitario] = useState('');
+  
+  // ALTERAÇÃO AQUI: Inicializa o preço unitário como '0'
+  const [precoUnitario, setPrecoUnitario] = useState('0'); 
   const [dataValidade, setDataValidade] = useState('');
 
-  // Adicione este useEffect para atualizar a loja padrão e os valores iniciais ao abrir o modal
   useEffect(() => {
     if (isOpen) {
       setEstabelecimentoId(estabelecimentoPadrao || '');
       setQuantidade(itemAtual?.quantidadePendente || '');
       setMedida(itemAtual?.medida || 'Unid.');
-      setPrecoUnitario('');
+      
+      // Define como '0' ou limpa se preferir, mas como pedido para ser zero:
+      setPrecoUnitario('0'); 
       setDataValidade('');
     }
   }, [isOpen, estabelecimentoPadrao, itemAtual]);
