@@ -661,13 +661,19 @@ export default function Home() {
           listasStorage.forEach((l: any) => {
             (l.itens || []).forEach((i: any) => {
               if (i.compras) {
-                i.compras = i.compras.forEach((c: any) => {
+                // CORREÇÃO: Utilizar .map() em vez de .forEach() para não retornar undefined
+                i.compras = i.compras.map((c: any) => {
                   if (String(c.id) === String(dados.id)) {
-                    c.estabelecimentoId = dados.estabelecimentoId;
-                    c.quantidade = parseFloat(dados.quantidade);
-                    c.precoUnitario = parseFloat(dados.precoUnitario);
-                    c.dataValidade = dados.dataValidade || '';
+                    return {
+                      ...c,
+                      estabelecimentoId: dados.estabelecimentoId,
+                      quantidade: parseFloat(dados.quantidade),
+                      precoUnitario: parseFloat(dados.precoUnitario),
+                      dataValidade: dados.dataValidade || '',
+                      total: (parseFloat(dados.quantidade) || 0) * (parseFloat(dados.precoUnitario) || 0)
+                    };
                   }
+                  return c;
                 });
               }
             });
