@@ -555,6 +555,7 @@ export default function Home() {
         compras={comprasHistorico}
         formatarDataBr={formatarDataBr}
         onNovaCompra={() => {
+          setEstabelecimentoPrincipal(estabelecimentoPrincipal);
           setModalHistoricoOpen(false);
           setModalCompraOpen(true);
         }}

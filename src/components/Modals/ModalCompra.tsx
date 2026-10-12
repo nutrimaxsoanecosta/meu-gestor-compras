@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface ModalCompraProps {
   isOpen: boolean;
@@ -23,10 +23,20 @@ export default function ModalCompra({
   const [precoUnitario, setPrecoUnitario] = useState('');
   const [dataValidade, setDataValidade] = useState('');
 
+  // Adicione este useEffect para atualizar a loja padrão e os valores iniciais ao abrir o modal
+  useEffect(() => {
+    if (isOpen) {
+      setEstabelecimentoId(estabelecimentoPadrao || '');
+      setQuantidade(itemAtual?.quantidadePendente || '');
+      setMedida(itemAtual?.medida || 'Unid.');
+      setPrecoUnitario('');
+      setDataValidade('');
+    }
+  }, [isOpen, estabelecimentoPadrao, itemAtual]);
+
   if (!isOpen) return null;
 
   const total = (parseFloat(String(quantidade)) || 0) * (parseFloat(String(precoUnitario)) || 0);
-
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-xl">
